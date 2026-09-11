@@ -1,0 +1,12 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- USB drive body -->
+  <rect x="4" y="5" width="12" height="11" rx="2" fill="#1e4db7"/>
+  <!-- Connector top -->
+  <rect x="7" y="2" width="6" height="5" rx="1" fill="#2563eb"/>
+  <!-- Prongs -->
+  <rect x="8" y="1" width="1.5" height="3" rx="0.5" fill="#93b4e8"/>
+  <rect x="10.5" y="1" width="1.5" height="3" rx="0.5" fill="#93b4e8"/>
+  <!-- Detail lines -->
+  <rect x="6.5" y="9" width="7" height="1.5" rx="0.75" fill="#4a7fd4"/>
+  <rect x="6.5" y="12" width="5" height="1.5" rx="0.75" fill="#4a7fd4"/>
+</svg>

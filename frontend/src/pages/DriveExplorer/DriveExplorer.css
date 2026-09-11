@@ -1,0 +1,201 @@
+.explorer-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d6e6f9;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* ── Main card ── */
+.explorer {
+  width: 680px;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 8px 32px rgba(30, 77, 183, 0.15),
+    0 2px 8px rgba(30, 77, 183, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Title bar ── */
+.explorer__titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #e2edfb;
+  border-bottom: 1px solid #c8daf5;
+  user-select: none;
+}
+
+.explorer__titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a3a6b;
+}
+
+.explorer__close-btn {
+  width: 26px;
+  height: 20px;
+  border: 1px solid #b0c8e8;
+  border-radius: 3px;
+  background: #dce9f8;
+  color: #1a3a6b;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.explorer__close-btn:hover {
+  background: #e53e3e;
+  color: #fff;
+  border-color: #e53e3e;
+}
+
+/* ── Top header bar ── */
+.explorer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #f0f6ff;
+  border-bottom: 1px solid #d0e2f7;
+  gap: 12px;
+}
+
+.explorer__back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #1e4db7;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.explorer__back-btn:hover { background: #1a3fa0; }
+
+.explorer__drive-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #1a3a6b;
+  font-weight: 500;
+}
+
+.explorer__drive-sep { color: #94a3b8; }
+
+.explorer__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.explorer__status-dot--online,
+.explorer__status-dot--clean    { background: #22c55e; }
+.explorer__status-dot--infected { background: #ef4444; }
+.explorer__status-dot--scanning { background: #f59e0b; }
+.explorer__status-dot--unknown  { background: #94a3b8; }
+
+.explorer__status-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* ── Column headers ── */
+.explorer__cols {
+  display: grid;
+  grid-template-columns: 3fr 1fr 1fr 1.4fr;
+  padding: 9px 20px;
+  background: #1e4db7;
+  gap: 8px;
+  align-items: center;
+}
+
+.explorer__col {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+/* ── File rows ── */
+.explorer__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 340px;
+}
+
+.explorer__row {
+  display: grid;
+  grid-template-columns: 3fr 1fr 1fr 1.4fr;
+  padding: 10px 20px;
+  gap: 8px;
+  border-bottom: 1px solid #edf2fb;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.12s;
+  outline: none;
+}
+
+.explorer__row:hover         { background: #f0f6ff; }
+.explorer__row--selected     { background: #e4eeff; }
+
+.explorer__cell {
+  font-size: 13.5px;
+  color: #334155;
+}
+
+.explorer__cell--name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 500;
+  color: #1a3a6b;
+}
+
+.explorer__cell--type {
+  text-transform: capitalize;
+  color: #64748b;
+  font-size: 12.5px;
+}
+
+/* ── Footer ── */
+.explorer__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: #f8faff;
+  border-top: 1px solid #d0e2f7;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.explorer__selected-label strong {
+  color: #1a3a6b;
+}

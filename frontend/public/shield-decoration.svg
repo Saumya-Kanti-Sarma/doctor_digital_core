@@ -1,0 +1,24 @@
+<svg viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circuits -->
+  <line x1="80" y1="130" x2="30" y2="130" stroke="#c8dbf8" stroke-width="1.5"/>
+  <line x1="30" y1="130" x2="30" y2="110" stroke="#c8dbf8" stroke-width="1.5"/>
+  <circle cx="30" cy="107" r="3" fill="#c8dbf8"/>
+  <line x1="80" y1="130" x2="130" y2="130" stroke="#c8dbf8" stroke-width="1.5"/>
+  <line x1="130" y1="130" x2="130" y2="110" stroke="#c8dbf8" stroke-width="1.5"/>
+  <circle cx="130" cy="107" r="3" fill="#c8dbf8"/>
+  <line x1="80" y1="130" x2="80" y2="140" stroke="#c8dbf8" stroke-width="1.5"/>
+  <circle cx="80" cy="143" r="3" fill="#c8dbf8"/>
+  <line x1="50" y1="130" x2="50" y2="148" stroke="#c8dbf8" stroke-width="1.5"/>
+  <circle cx="50" cy="151" r="3" fill="#c8dbf8"/>
+  <line x1="110" y1="130" x2="110" y2="148" stroke="#c8dbf8" stroke-width="1.5"/>
+  <circle cx="110" cy="151" r="3" fill="#c8dbf8"/>
+  <!-- Shield -->
+  <path d="M80 30 L108 42 L108 72 Q108 95 80 110 Q52 95 52 72 L52 42 Z" fill="#deeafb" stroke="#a8c4e8" stroke-width="2"/>
+  <!-- Lock body -->
+  <rect x="68" y="70" width="24" height="20" rx="3" fill="#1e4db7" opacity="0.7"/>
+  <!-- Lock shackle -->
+  <path d="M72 70 Q72 58 80 58 Q88 58 88 70" stroke="#1e4db7" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <!-- Keyhole -->
+  <circle cx="80" cy="78" r="3" fill="white" opacity="0.9"/>
+  <rect x="78.5" y="79" width="3" height="5" rx="1" fill="white" opacity="0.9"/>
+</svg>

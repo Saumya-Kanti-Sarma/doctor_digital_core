@@ -1,0 +1,94 @@
+.sidebar {
+  width: 200px;
+  min-width: 200px;
+  background: linear-gradient(180deg, #deeafb 0%, #ccddf7 60%, #b8d0f2 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 0 16px;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid #b8d0f2;
+}
+
+/* ── Logo ── */
+.sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  align-self: flex-start;
+}
+
+#logo {
+  max-width: 100px;
+}
+
+.sidebar__logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar__logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.sidebar__logo-doctor {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a3a6b;
+  letter-spacing: 0.02em;
+}
+
+.sidebar__logo-digital {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a3a6b;
+  letter-spacing: 0.01em;
+}
+
+/* ── Scan Button ── */
+.sidebar__scan-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 18px;
+  background: #1e4db7;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  letter-spacing: 0.01em;
+}
+
+.sidebar__scan-btn:hover {
+  background: #1a3fa0;
+}
+
+.sidebar__scan-btn:active,
+.sidebar__scan-btn--active {
+  background: #163390;
+  transform: scale(0.98);
+}
+
+/* ── Decorative Shield ── */
+.sidebar__decorative {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 160px;
+  opacity: 0.7;
+}
+
+.sidebar__shield-svg {
+  width: 100%;
+  height: auto;
+}

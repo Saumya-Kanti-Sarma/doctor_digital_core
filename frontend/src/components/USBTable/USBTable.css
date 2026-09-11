@@ -1,0 +1,222 @@
+.usb-table {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* ── Panel header ── */
+.usb-table__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 24px 14px;
+  background: #f0f6ff;
+  border-bottom: 1px solid #d0e2f7;
+}
+
+.usb-table__header-icon {
+  color: #1e4db7;
+  flex-shrink: 0;
+}
+
+.usb-table__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a3a6b;
+  margin: 0;
+}
+
+/* ── Column header row ── */
+.usb-table__cols {
+  display: grid;
+  grid-template-columns: 2.5fr 2fr 1fr 1.2fr;
+  padding: 9px 20px;
+  background: #1e4db7;
+  gap: 8px;
+  align-items: center;
+}
+
+.usb-table__col-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+/* ── Table body ── */
+.usb-table__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* ── Drive row ── */
+.drive-row {
+  display: grid;
+  grid-template-columns: 2.5fr 2fr 1fr 1.2fr;
+  padding: 11px 20px;
+  gap: 8px;
+  border-bottom: 1px solid #edf2fb;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  outline: none;
+}
+
+.drive-row:hover {
+  background: #f0f6ff;
+}
+
+.drive-row--selected {
+  background: #e4eeff;
+}
+
+.drive-row__cell {
+  font-size: 13.5px;
+  color: #1a3a6b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drive-row__model {
+  font-weight: 500;
+}
+
+/* ── Status dot ── */
+.drive-row__status-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.drive-row__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.drive-row__dot--online,
+.drive-row__dot--clean {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.drive-row__dot--infected {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.drive-row__dot--scanning {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.drive-row__dot--unknown {
+  background: #94a3b8;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2);
+}
+
+.drive-row__status-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.drive-row__status-text--online,
+.drive-row__status-text--clean  { color: #16a34a; }
+.drive-row__status-text--infected { color: #dc2626; }
+.drive-row__status-text--scanning { color: #d97706; }
+.drive-row__status-text--unknown  { color: #64748b; }
+
+/* ── Empty state ── */
+.usb-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  gap: 10px;
+}
+
+.usb-empty__icon-wrap {
+  margin-bottom: 8px;
+}
+
+.usb-empty__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a3a6b;
+  margin: 0;
+}
+
+.usb-empty__subtitle {
+  font-size: 14px;
+  color: #5a7ab0;
+  margin: 0;
+}
+
+/* ── Footer: drive info bar + action buttons ── */
+.usb-table__footer {
+  border-top: 1px solid #d0e2f7;
+  background: #f8faff;
+}
+
+.usb-table__drive-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  font-size: 12.5px;
+  color: #334155;
+  border-bottom: 1px solid #e8f0fb;
+  background: #f0f6ff;
+  min-height: 38px;
+}
+
+.usb-table__drive-info strong {
+  color: #1a3a6b;
+}
+
+.usb-table__no-selection {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* ── Action buttons ── */
+.usb-table__actions {
+  display: flex;
+  gap: 12px;
+  padding: 12px 20px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  transition: filter 0.15s, transform 0.1s;
+  letter-spacing: 0.01em;
+}
+
+.action-btn:hover  { filter: brightness(1.1); }
+.action-btn:active { transform: scale(0.97); }
+
+.action-btn--open     { background: #1e4db7; }
+.action-btn--recover  { background: #16a34a; }
+.action-btn--sanitize { background: #dc2626; }
