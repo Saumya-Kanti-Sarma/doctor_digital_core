@@ -86,6 +86,59 @@ def _confirm_target(path) -> bool:
     return True
 
 
+def sanitize_directory_no_confirm(directory: str, passes: int = 2) -> bool:
+    """
+    Non-interactive variant of sanitize_directory() for API use.
+
+    Caller is responsible for obtaining user confirmation before calling
+    this function.  All safety guards (removable drive check, root check)
+    are still enforced; only the interactive ``input()`` prompts are skipped.
+
+    Returns True if all files were sanitized successfully, False otherwise.
+    """
+    if sys.platform != "win32":
+        raise OSError("sanitize_directory_no_confirm() is only supported on Windows.")
+
+    directory = Path(directory).resolve()
+
+    if not _is_safe_target(directory):
+        return False
+
+    print("\nScanning directory…")
+    files = [Path(root) / f for root, _, fnames in os.walk(directory) for f in fnames]
+    print(f"Files found: {len(files)}")
+
+    results = [_sanitize_file(fp, passes=passes) for fp in files]
+
+    # Remove empty directories (deepest first)
+    print("\nRemoving directory structure…")
+    for root, dirs, _ in os.walk(directory, topdown=False):
+        for d in dirs:
+            try:
+                (Path(root) / d).rmdir()
+            except OSError:
+                pass
+    try:
+        directory.rmdir()
+    except OSError as e:
+        print(f"WARNING: Could not remove root directory: {e}")
+
+    successful = sum(1 for r in results if r["success"])
+    failed = len(results) - successful
+
+    print("\n" + "=" * 70)
+    print("DIRECTORY SANITIZATION COMPLETE")
+    print("=" * 70)
+    print(f"Files found     : {len(files)}")
+    print(f"Files sanitized : {successful}")
+    print(f"Files failed    : {failed}")
+    print(f"Overwrite passes: {passes}")
+    print("\nResult: " + ("SUCCESS" if failed == 0 else "PARTIAL FAILURE"))
+    print("=" * 70)
+
+    return failed == 0
+
+
 def _random_name(length: int = 24) -> str:
     chars = string.ascii_letters + string.digits
     return "".join(random.choice(chars) for _ in range(length))

@@ -1,15 +1,39 @@
 """
-doctor_digital.usb_sanitizer
-=============================
-Two public functions:
+usb_sanitizer.py
+=================
+USB disk / directory sanitizer, exposed both as a plain Python module
+and as a FastAPI app in one file.
 
-    complete_sanitize(disk)
-        Full sector-level wipe of an entire USB disk.
-        `disk` is a dict returned by detect_dir().
+Run as an API (from an elevated / Administrator terminal, on Windows):
 
-    sanitize_dir(path)
-        Secure overwrite + deletion of every file inside a
-        specific directory on a removable drive.
+    pip install fastapi "uvicorn[standard]"
+    uvicorn usb_sanitizer:app --host 127.0.0.1 --port 8000
+
+Example:
+
+    POST /disks/0/sanitize
+    {
+        "disk": {"Disk#": 0, "Model": "SanDisk Ultra", "Serial": "AB12CD34", "Size (GB)": 64},
+        "confirm_disk_number": "0",
+        "confirm_serial_suffix": "CD34",
+        "confirm_phrase": "WIPE THIS DRIVE",
+        "passes": 2
+    }
+    -> {"job_id": "...", "status_url": "/jobs/..."}
+
+    GET /jobs/{job_id}   -> poll for progress/result
+
+WARNING: this exposes a genuinely destructive, irreversible operation
+(disk wipe) over HTTP. At minimum, put it behind authentication and
+restrict it to localhost / a trusted network before using it beyond
+local testing — see the note near `app = FastAPI(...)` below.
+
+Can also be used directly as a library (no API):
+
+    from usb_sanitizer import complete_sanitize, sanitize_dir
+    complete_sanitize(disk, confirm_disk_number="0",
+                       confirm_serial_suffix="CD34",
+                       confirm_phrase="WIPE THIS DRIVE")
 """
 
 import ctypes
@@ -20,11 +44,29 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
-from pathlib import Path
+from datetime import timezone
+from enum import Enum
+from typing import Any, Callable, Optional
 
 AUDIT_DIR = os.path.join(os.path.expanduser("~"), "usb_sanitizer_logs")
+
+ProgressCallback = Optional[Callable[[str, dict], None]]
+
+
+def _emit(callback: ProgressCallback, message: str, data: dict = None):
+    """Send a progress update both to stdout (for CLI use) and to an
+    optional callback (for API/job-tracking use)."""
+    print(message)
+    if callback:
+        callback(message, data or {})
+
+
+# ==================================================================
+# Core sanitizer logic
+# ==================================================================
 
 # ------------------------------------------------------------------ helpers
 
@@ -40,8 +82,8 @@ def _require_windows_admin():
         raise OSError("usb_sanitizer requires Windows.")
     if not _is_admin():
         raise PermissionError(
-            "Must be run from an elevated (Administrator) terminal.\n"
-            "Right-click your terminal and choose 'Run as administrator'."
+            "Must be run from an elevated (Administrator) process.\n"
+            "Restart the API server (uvicorn) as Administrator."
         )
 
 
@@ -74,34 +116,38 @@ def _run_diskpart(commands: list) -> str:
 
 # ------------------------------------------------------------------ confirmation
 
-def _confirm_disk(disk: dict) -> bool:
-    print("\n" + "=" * 70)
-    print("DESTRUCTIVE ACTION CONFIRMATION")
-    print("=" * 70)
-    print(f"  Disk#   : {disk.get('Disk#')}")
-    print(f"  Model   : {disk.get('Model')}")
-    print(f"  Serial  : {disk.get('Serial')}")
-    print(f"  Size    : {disk.get('Size (GB)')} GB")
-    print("\nALL DATA ON THIS DISK WILL BE PERMANENTLY DESTROYED.")
-    print("This cannot be undone.\n")
+class ConfirmationError(ValueError):
+    """Raised when the caller-supplied confirmation values don't match
+    the target disk. Distinguished from other ValueErrors so the API
+    layer can map it to HTTP 422."""
 
+
+def _validate_confirmation(
+    disk: dict,
+    confirm_disk_number: str,
+    confirm_serial_suffix: str,
+    confirm_phrase: str,
+) -> None:
+    """Non-interactive confirmation check (replaces old input() prompts).
+    Raises ConfirmationError on any mismatch; returns None on success."""
     serial = disk.get("Serial", "")
-    suffix = serial[-4:] if len(serial) >= 4 else serial
-    disk_num = str(disk.get("Disk#", ""))
+    expected_suffix = serial[-4:] if len(serial) >= 4 else serial
+    expected_disk_num = str(disk.get("Disk#", ""))
 
-    if input(f"Type the disk NUMBER ({disk_num}): ").strip() != disk_num:
-        print("Disk number mismatch. Aborting.")
-        return False
+    if str(confirm_disk_number).strip() != expected_disk_num:
+        raise ConfirmationError(
+            f"Disk number mismatch: expected {expected_disk_num}"
+        )
 
-    if input(f"Type the LAST 4 CHARS of the serial ({suffix}): ").strip().upper() != suffix.upper():
-        print("Serial mismatch. Aborting.")
-        return False
+    if confirm_serial_suffix.strip().upper() != expected_suffix.upper():
+        raise ConfirmationError(
+            "Serial suffix mismatch: does not match target disk"
+        )
 
-    if input("Type exactly WIPE THIS DRIVE to proceed: ").strip() != "WIPE THIS DRIVE":
-        print("Confirmation phrase mismatch. Aborting.")
-        return False
-
-    return True
+    if confirm_phrase.strip() != "WIPE THIS DRIVE":
+        raise ConfirmationError(
+            'Confirmation phrase mismatch: must be exactly "WIPE THIS DRIVE"'
+        )
 
 
 # ------------------------------------------------------------------ wipe steps
@@ -229,7 +275,7 @@ def _confidence_score(clean_result, random_result, verification) -> dict:
     return {"score": score, "breakdown": breakdown, "max_possible": 90}
 
 
-def _write_audit_log(disk: dict, steps: list, verification: dict, score: dict) -> str:
+def _write_audit_log(disk: dict, steps: list, verification: dict, score: dict, operator: str = None) -> str:
     os.makedirs(AUDIT_DIR, exist_ok=True)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     log_id = str(uuid.uuid4())
@@ -237,7 +283,7 @@ def _write_audit_log(disk: dict, steps: list, verification: dict, score: dict) -
     record = {
         "log_id": log_id,
         "timestamp": ts,
-        "operator": os.environ.get("USERNAME", "unknown"),
+        "operator": operator or os.environ.get("USERNAME", "unknown"),
         "hostname": os.environ.get("COMPUTERNAME", "unknown"),
         "target_disk": disk,
         "steps": steps,
@@ -264,7 +310,16 @@ def _write_audit_log(disk: dict, steps: list, verification: dict, score: dict) -
 
 # ------------------------------------------------------------------ public API
 
-def complete_sanitize(disk: dict, passes: int = 2, drive_letter: str = "Z") -> dict:
+def complete_sanitize(
+    disk: dict,
+    confirm_disk_number: str,
+    confirm_serial_suffix: str,
+    confirm_phrase: str,
+    passes: int = 2,
+    drive_letter: str = "Z",
+    operator: str = None,
+    on_progress: ProgressCallback = None,
+) -> dict:
     """
     Perform a full sector-level sanitization of a USB disk.
 
@@ -272,11 +327,19 @@ def complete_sanitize(disk: dict, passes: int = 2, drive_letter: str = "Z") -> d
     ----------
     disk : dict
         A disk dict returned by ``detect_dir()``.
+    confirm_disk_number, confirm_serial_suffix, confirm_phrase : str
+        Caller-supplied confirmation values, validated against `disk`
+        before any destructive action is taken.
     passes : int
         1 = zero wipe only.
         2 = zero wipe + random fill + re-zero (default, recommended).
     drive_letter : str
         Temporary drive letter used during the random-fill pass (default "Z").
+    operator : str
+        Optional identity of the caller, recorded in the audit log
+        (falls back to the OS username of the running process).
+    on_progress : callable(message: str, data: dict), optional
+        Invoked at each step for callers that want to stream status.
 
     Returns
     -------
@@ -284,6 +347,13 @@ def complete_sanitize(disk: dict, passes: int = 2, drive_letter: str = "Z") -> d
         success         bool
         confidence_score int   (0-90)
         audit_log_path  str
+
+    Raises
+    ------
+    ConfirmationError
+        If the confirmation values don't match the target disk.
+    PermissionError
+        If not running elevated on Windows.
     """
     _require_windows_admin()
 
@@ -291,44 +361,48 @@ def complete_sanitize(disk: dict, passes: int = 2, drive_letter: str = "Z") -> d
     if disk_number is None:
         raise ValueError("disk dict must contain 'Disk#' or '_number'.")
 
-    if not _confirm_disk(disk):
-        print("Aborted by user.")
-        return {"success": False, "confidence_score": 0, "audit_log_path": None}
+    _validate_confirmation(disk, confirm_disk_number, confirm_serial_suffix, confirm_phrase)
 
     steps = []
 
-    print("\n[1/4] Zero-wiping entire disk (diskpart clean all)…")
+    _emit(on_progress, "[1/4] Zero-wiping entire disk (diskpart clean all)…")
     clean = _diskpart_clean_all(disk_number)
     steps.append(clean)
-    print(f"      done in {clean['elapsed_sec']}s — success={clean['success']}")
+    _emit(on_progress, f"      done in {clean['elapsed_sec']}s — success={clean['success']}", clean)
 
     random_result = {}
     if passes >= 2:
-        print(f"\n[2/4] Random-data fill pass on letter {drive_letter}:…")
+        _emit(on_progress, f"[2/4] Random-data fill pass on letter {drive_letter}:…")
         random_result = _create_volume_fill_random(disk_number, drive_letter)
         steps.append(random_result)
-        print(f"      {round(random_result['bytes_written']/(1024**3), 2)} GB written — re-zeroing…")
+        _emit(
+            on_progress,
+            f"      {round(random_result['bytes_written']/(1024**3), 2)} GB written — re-zeroing…",
+            random_result,
+        )
         final_clean = _diskpart_clean_all(disk_number)
         steps.append(final_clean)
     else:
-        print("\n[2/4] Skipping random-fill pass (passes=1).")
+        _emit(on_progress, "[2/4] Skipping random-fill pass (passes=1).")
 
-    print("\n[3/4] Verifying wipe by sampling raw sectors…")
+    _emit(on_progress, "[3/4] Verifying wipe by sampling raw sectors…")
     verification = _verify_wipe(disk_number)
-    print(f"      clean samples: {verification.get('clean_sample_count')}/{verification.get('sample_count')}")
+    _emit(
+        on_progress,
+        f"      clean samples: {verification.get('clean_sample_count')}/{verification.get('sample_count')}",
+        verification,
+    )
 
-    print("\n[4/4] Recreating usable volume on wiped disk…")
+    _emit(on_progress, "[4/4] Recreating usable volume on wiped disk…")
     final_vol = _recreate_volume(disk_number, drive_letter)
     steps.append(final_vol)
-    print(f"      done in {final_vol['elapsed_sec']}s — success={final_vol['success']}")
+    _emit(on_progress, f"      done in {final_vol['elapsed_sec']}s — success={final_vol['success']}", final_vol)
 
     score = _confidence_score(clean, random_result, verification)
-    log_path = _write_audit_log(disk, steps, verification, score)
+    log_path = _write_audit_log(disk, steps, verification, score, operator=operator)
 
-    print("\n" + "=" * 70)
-    print(f"SANITIZATION CONFIDENCE SCORE: {score['score']} / 100")
-    print(f"Audit log: {log_path}")
-    print("=" * 70)
+    _emit(on_progress, f"SANITIZATION CONFIDENCE SCORE: {score['score']} / 100")
+    _emit(on_progress, f"Audit log: {log_path}")
 
     return {
         "success": clean["success"],
@@ -337,12 +411,15 @@ def complete_sanitize(disk: dict, passes: int = 2, drive_letter: str = "Z") -> d
     }
 
 
-def sanitize_dir(path: str, passes: int = 2) -> bool:
+def sanitize_dir(path: str, passes: int = 2, on_progress: ProgressCallback = None) -> bool:
     """
     Securely overwrite and delete every file inside `path`.
 
     The target directory must be on a removable (USB) drive and must
     not be the root of that drive.
+
+    This variant is non-interactive (no ``input()`` prompts); the caller
+    is responsible for obtaining confirmation before invoking.
 
     Parameters
     ----------
@@ -350,6 +427,8 @@ def sanitize_dir(path: str, passes: int = 2) -> bool:
         Absolute path to the directory to sanitize.
     passes : int
         Number of overwrite passes (default 2: random then zeros).
+    on_progress : callable(message: str, data: dict), optional
+        Progress callback for API/job-tracking use.
 
     Returns
     -------
@@ -357,6 +436,101 @@ def sanitize_dir(path: str, passes: int = 2) -> bool:
     """
     _require_windows_admin()
 
-    # Re-use the logic from dir_sanitizer
-    from doctor_digital._dir_sanitizer import sanitize_directory
-    return sanitize_directory(path, passes=passes)
+    _emit(on_progress, f"Sanitizing directory: {path} (passes={passes})")
+
+    # Use the non-interactive variant so the API server is never blocked
+    from doctor_digital._dir_sanitizer import sanitize_directory_no_confirm
+    result = sanitize_directory_no_confirm(path, passes=passes)
+
+    _emit(on_progress, f"Directory sanitize complete — success={result}")
+    return result
+
+
+# ==================================================================
+# In-memory background job tracker
+# ==================================================================
+# Wipes can take many minutes, so the API runs them in a background
+# thread and hands back a job_id immediately. NOTE: in-memory means
+# jobs are lost on restart and this won't work across multiple worker
+# processes — swap for a persistent store (DB/Redis) for production.
+
+class JobStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class Job:
+    def __init__(self, job_id: str, kind: str):
+        self.job_id = job_id
+        self.kind = kind
+        self.status = JobStatus.PENDING
+        self.created_at = datetime.datetime.now(timezone.utc).isoformat()
+        self.updated_at = self.created_at
+        self.log: list[dict] = []
+        self.result: Optional[dict] = None
+        self.error: Optional[str] = None
+        self._lock = threading.Lock()
+
+    def add_log(self, message: str, data: dict = None):
+        with self._lock:
+            self.log.append({
+                "timestamp": datetime.datetime.now(timezone.utc).isoformat(),
+                "message": message,
+                "data": data or {},
+            })
+            self.updated_at = self.log[-1]["timestamp"]
+
+    def set_status(self, status: JobStatus):
+        with self._lock:
+            self.status = status
+            self.updated_at = datetime.datetime.now(timezone.utc).isoformat()
+
+    def to_dict(self) -> dict:
+        with self._lock:
+            return {
+                "job_id": self.job_id,
+                "kind": self.kind,
+                "status": self.status.value,
+                "created_at": self.created_at,
+                "updated_at": self.updated_at,
+                "log": list(self.log),
+                "result": self.result,
+                "error": self.error,
+            }
+
+
+class JobStore:
+    def __init__(self):
+        self._jobs: dict[str, Job] = {}
+        self._lock = threading.Lock()
+
+    def create(self, kind: str) -> Job:
+        job_id = str(uuid.uuid4())
+        job = Job(job_id, kind)
+        with self._lock:
+            self._jobs[job_id] = job
+        return job
+
+    def get(self, job_id: str) -> Optional[Job]:
+        with self._lock:
+            return self._jobs.get(job_id)
+
+    def run_in_background(self, job: Job, target: Callable[[Job], Any]):
+        def _runner():
+            job.set_status(JobStatus.RUNNING)
+            try:
+                result = target(job)
+                job.result = result
+                job.set_status(JobStatus.SUCCEEDED)
+            except Exception as exc:  # noqa: BLE001 - surface any failure to the caller
+                job.error = f"{type(exc).__name__}: {exc}"
+                job.add_log(f"ERROR: {job.error}")
+                job.set_status(JobStatus.FAILED)
+
+        thread = threading.Thread(target=_runner, daemon=True)
+        thread.start()
+
+
+job_store = JobStore()
