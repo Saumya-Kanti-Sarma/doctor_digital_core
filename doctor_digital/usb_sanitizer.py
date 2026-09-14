@@ -51,7 +51,7 @@ from datetime import timezone
 from enum import Enum
 from typing import Any, Callable, Optional
 
-AUDIT_DIR = os.path.join(os.path.expanduser("~"), "usb_sanitizer_logs")
+AUDIT_DIR = os.path.join(os.path.expanduser("~"), "doctor_digital_usb_sanitizer_logs")
 
 ProgressCallback = Optional[Callable[[str, dict], None]]
 
